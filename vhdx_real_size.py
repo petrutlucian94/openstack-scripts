@@ -12,10 +12,10 @@ def get_max_internal_size(path, size):
     try:
         with open(path,'rb') as f:
             header_size = HEADER_SECTION_SIZE
-            block_size = get_block_size(path, f)
-            logical_sector_size = get_logical_sector_size(path, f)
-            log_size = get_log_size(path, f)
-            metadata_size = get_metadata_size_and_offset(path, f)[0]
+            block_size = get_block_size(f)
+            logical_sector_size = get_logical_sector_size(f)
+            log_size = get_log_size(f)
+            metadata_size = get_metadata_size_and_offset(f)[0]
 
             chunk_ratio = (2 ** 23) * logical_sector_size / block_size
             data_blocks_count = (size + block_size - 1) / block_size
@@ -25,7 +25,7 @@ def get_max_internal_size(path, size):
                         / 1024 ** 2 
 
             max_internal_size = size - (header_size + log_size + \
-                                / metadata_size + bat_size * (1024 ** 2))
+                                 metadata_size + bat_size * (1024 ** 2))
             return max_internal_size
     except IOError:
         print "Unable to get data from the VHDX file: ", path
@@ -72,4 +72,4 @@ def get_logical_sector_size(file_handler):
     logical_sector_size = struct.unpack('<I', file_handler.read(4))[0]
     return logical_sector_size
 
-'''print "max internal size: ", get_max_internal_size("c:\\cirros.vhdx", 1024 ** 3)'''
+print "max internal size: ", get_max_internal_size("c:\\cirros.vhdx", 1024 ** 3)
