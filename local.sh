@@ -6,6 +6,25 @@ set -e
 # export OS_TENANT_NAME=admin
 # export OS_AUTH_URL=http://127.0.0.1:5000/v2.0
 
+function get_first_element() {
+    while read data
+    do
+        element=$element$data
+    done
+    echo $element | awk 'NR==1 {print $2}'
+}
+
+
+privateNetwork=$(neutron net-list | grep private | get_first_element)
+publicNetwork=$(neutron net-list | grep public | get_first_element)
+cirrosImage=$(glance image-list | grep cirros | get_first_element)
+
+export PRIVATE_NETWORK=$privateNetwork
+export PUBLIC_NETWORK=$publicNetwork
+export CIRROS_IMAGE=$cirrosImage
+
+
+
 nova flavor-delete 42
 nova flavor-create m1.nano 42 256 3 1
 
