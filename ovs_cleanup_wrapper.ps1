@@ -2,7 +2,7 @@ Param(
     [switch]$help
 )
 
-$helpString = @'
+$helpString = @"
 This helper script allows running 'neutron-ovs-cleanup' exactly once per
 boot and is intended to be called before launching 'nova-compute'.
 
@@ -11,8 +11,8 @@ running instances. Note that 'neutron-ovs-cleanup' will remove all the ports
 from pre-configured bridges (except for ports that contain certain tags),
 while Nova will re-add the VM ports when the serivce starts.
 
-Usage: $PSCommandPath <neutron-ovs-cleanup.exe> <ovs_cleanup_arg_0> ... <ovs_cleanup_arg_n>
-'@
+Usage: $PSCommandPath <neutron-ovs-cleanup.exe> [<ovs_cleanup_arg_0> ... <ovs_cleanup_arg_n>]
+"@
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -93,17 +93,34 @@ elseif ($args.Count -lt 1) {
     exit 1
 }
 
-$bootTime = get_boot_time
-$lastExecutionTime = get_last_execution_timestamp
+try {
+    mkdir $OSRegKey -Force
+    $bootTime = get_boot_time
+    $lastExecutionTime = get_last_execution_timestamp
 
-log_message "Last OVS cleanup time: $lastExecutionTime"
-log_message "Host boot time: $bootTime"
+    log_message "Last OVS cleanup time: $lastExecutionTime"
+    log_message "Host boot time: $bootTime"
 
-if ($lastExecutionTime -gt $bootTime) {
-    log_message "OVS cleanup already performed since the host was started."
+    if ($lastExecutionTime -gt $bootTime) {
+        log_message "OVS cleanup already performed since the host was started."
+    }
+    else {
+        log_message "Performing OVS cleanup."
+        set_execution_timestamp
+        & $args[0] $args[1..$args.Count]
+    }
 }
-else {
-    log_message "Performing OVS cleanup."
-    set_execution_timestamp
-    & $args[0] $args[1..$args.Count]
+catch {
+    $formatstring = "{0} : {1}`n{2}`n" +
+                    "    + CategoryInfo          : {3}`n" +
+                    "    + FullyQualifiedErrorId : {4}`n"
+    $fields = $_.InvocationInfo.MyCommand.Name,
+              $_.ErrorDetails.Message,
+              $_.InvocationInfo.PositionMessage,
+              $_.CategoryInfo.ToString(),
+              $_.FullyQualifiedErrorId
+
+    $err = $formatstring -f $fields
+    log_error "$err"
+    exit 1
 }
