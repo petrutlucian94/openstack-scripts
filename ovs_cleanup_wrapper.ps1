@@ -94,7 +94,10 @@ elseif ($args.Count -lt 1) {
 }
 
 try {
-    mkdir $OSRegKey -Force
+    if (!(test-path $OSRegKey)) {
+        mkdir $OSRegKey
+    }
+
     $bootTime = get_boot_time
     $lastExecutionTime = get_last_execution_timestamp
 
