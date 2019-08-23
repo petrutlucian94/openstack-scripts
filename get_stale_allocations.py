@@ -25,12 +25,11 @@ def get_provider_allocations(conn, provider_uuid):
     return response.json()['allocations']
 
 
-def get_vm_allocations(conn):
+def get_vm_allocations(conn, resource_providers):
     # We'll return a mapping between allocations and providers
     # so that we can easily spot stale/duplicate allocations.
     allocations = collections.defaultdict(dict)
 
-    resource_providers = get_resource_providers(conn)
     for provider_id in resource_providers:
         provider_allocations = get_provider_allocations(conn, provider_id)
         for alloc_id, alloc_data in provider_allocations.items():
@@ -47,28 +46,24 @@ def get_existing_vms(conn, details=False, all_projects=True):
     return conn.compute.servers(details=details, all_projects=all_projects)
 
 
-def get_duplicate_allocations(conn):
+def get_duplicate_allocations(conn, vm_allocations):
     duplicates = {}
 
-    allocations = get_vm_allocations(conn)
-    for alloc_id, alloc_data in allocations.items():
+    for alloc_id, alloc_data in vm_allocations.items():
         if len(alloc_data) > 1:
             duplicates[alloc_id] = alloc_data
     return duplicates
 
 
-def get_stale_allocations(conn):
+def get_stale_allocations(conn, vms, vm_allocations):
     # Returns allocations for vms that no longer exist.
     # Note that it's expcted to have multiple allocations for
     # instances that are being migrated or resized but we're
     # not taking this into consideration (for now).
-    vms = get_existing_vms(conn)
-    allocations = get_vm_allocations(conn)
-
     vm_ids = [vm.id for vm in vms]
     stale_allocs = {
         alloc_id: alloc_data
-        for alloc_id, alloc_data in allocations.items()
+        for alloc_id, alloc_data in vm_allocations.items()
         if alloc_id not in vm_ids}
 
     return stale_allocs
@@ -78,12 +73,8 @@ def get_hypervisors(conn):
     return conn.compute.hypervisors()
 
 
-def get_misplaced_allocations(conn):
+def get_misplaced_allocations(conn, vms, vm_allocations, hypervisors):
     misplaced_allocations = collections.defaultdict(dict)
-
-    allocations = get_vm_allocations(conn)
-    hypervisors = get_hypervisors(conn)
-    vms = get_existing_vms(conn, details=True)
 
     hypervisor_ids = {}
     vm_hosts = {}
@@ -94,7 +85,7 @@ def get_misplaced_allocations(conn):
     for vm in vms:
         vm_hosts[vm.id] = vm.hypervisor_hostname
 
-    for alloc_id, alloc_data in allocations.items():
+    for alloc_id, alloc_data in vm_allocations.items():
         # The vm doesn't exist anymore. There's a different
         # function that handles those.
         if alloc_id not in vm_hosts:
@@ -114,10 +105,15 @@ if __name__ == '__main__':
 
     conn.compute.default_microversion = DEFAULT_COMPUTE_MICROVERSION
 
-    all_vm_allocs = get_vm_allocations(conn)
-    duplicate_allocs = get_duplicate_allocations(conn)
-    stale_allocs = get_stale_allocations(conn)
-    misplaced_allocations = get_misplaced_allocations(conn)
+    vms = get_existing_vms(conn, details=True)
+    hypervisors = get_hypervisors(conn)
+    resource_providers = get_resource_providers(conn)
+    vm_allocations = get_vm_allocations(conn, resource_providers)
+
+    duplicate_allocs = get_duplicate_allocations(conn, vm_allocations)
+    stale_allocs = get_stale_allocations(conn, vms, vm_allocations)
+    misplaced_allocations = get_misplaced_allocations(
+        conn, vms, vm_allocations, hypervisors)
 
     print("NOTE: it's expected to have multiple allocations for "
           "instances that are being migrated or resized.")
@@ -128,4 +124,4 @@ if __name__ == '__main__':
     print("\n\nMisplaced allocations: %s" %
           json.dumps(misplaced_allocations, indent=4))
     print("\n\nAll vm allocations: %s" %
-          json.dumps(all_vm_allocs, indent=4))
+          json.dumps(vm_allocations, indent=4))
