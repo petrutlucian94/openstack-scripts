@@ -43,7 +43,8 @@ def get_vm_allocations(conn, resource_providers):
 
 
 def get_existing_vms(conn, details=False, all_projects=True):
-    return conn.compute.servers(details=details, all_projects=all_projects)
+    return list(
+        conn.compute.servers(details=details, all_projects=all_projects))
 
 
 def get_duplicate_allocations(conn, vm_allocations):
@@ -70,7 +71,9 @@ def get_stale_allocations(conn, vms, vm_allocations):
 
 
 def get_hypervisors(conn):
-    return conn.compute.hypervisors()
+    # This returns a generator, let's return a list instead so that we
+    # don't risk having trouble when iterating over it more than once.
+    return list(conn.compute.hypervisors())
 
 
 def get_misplaced_allocations(conn, vms, vm_allocations, hypervisors):
@@ -99,6 +102,11 @@ def get_misplaced_allocations(conn, vms, vm_allocations, hypervisors):
 
     return misplaced_allocations
 
+
+def pretty_dict(dict_obj):
+    return json.dumps(dict_obj, indent=4)
+
+
 if __name__ == '__main__':
     # We expect credentials to be passed via env variables
     conn = openstack.connect()
@@ -118,10 +126,8 @@ if __name__ == '__main__':
     print("NOTE: it's expected to have multiple allocations for "
           "instances that are being migrated or resized.")
     print("\n\nAllocations for missing/deleted instances: %s" %
-          json.dumps(stale_allocs, indent=4))
+          pretty_dict(stale_allocs))
     print("\n\nDuplicate allocations: %s" %
-          json.dumps(duplicate_allocs, indent=4))
-    print("\n\nMisplaced allocations: %s" %
-          json.dumps(misplaced_allocations, indent=4))
-    print("\n\nAll vm allocations: %s" %
-          json.dumps(vm_allocations, indent=4))
+          pretty_dict(duplicate_allocs))
+    print("\n\nMisplaced allocations: %s" % pretty_dict(misplaced_allocations))
+    print("\n\nAll vm allocations: %s" % pretty_dict(vm_allocations))
