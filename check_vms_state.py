@@ -107,6 +107,7 @@ def check_host_mappings(nova_vms, hv_vms):
     nova_db_mismatches = {}
     cluster_mismatches = {}
     unclustered_vms = []
+    missing_vms = []
 
     nova_vm_ids = [vm.id for vm in nova_vms]
     hv_vm_ids = [vm for vm in vm_to_host]
@@ -115,6 +116,10 @@ def check_host_mappings(nova_vms, hv_vms):
     print("Leaked Nova vms: %s" % leaked_vms)
 
     for vm in nova_vms:
+        if vm.id not in vm_to_host:
+            missing_vms.append(vm.id)
+            continue
+
         if vm.hypervisor_hostname != vm_to_host[vm.id]:
             nova_db_mismatches[vm.id] = dict(
                 expected=vm.hypervisor_hostname,
@@ -135,6 +140,7 @@ def check_host_mappings(nova_vms, hv_vms):
         else:
             unclustered_vms.append(vm.id)
 
+    print("Missing vms: %s" % missing_vms)
     print("Nova db host mismatches: %s" % nova_db_mismatches)
     print("HV cluster host mismatches: %s" % cluster_mismatches)
     print("Unclustered VMs: %s" % unclustered_vms)
