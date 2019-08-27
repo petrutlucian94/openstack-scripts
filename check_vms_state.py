@@ -27,8 +27,12 @@ def get_hypervisor_vms(host='.'):
     nova_vms = []
     other_vms = []
 
-    vmutils = utilsfactory.get_vmutils(host=host)
-    vm_mappings = vmutils.list_instance_notes()
+    try:
+        vmutils = utilsfactory.get_vmutils(host=host)
+        vm_mappings = vmutils.list_instance_notes()
+    except Exception as ex:
+        print("WARNING: Could not get hypervisor vms: %s" % host)
+        return nova_vms, other_vms
 
     for vm_name, notes in vm_mappings:
         if notes and uuidutils.is_uuid_like(notes[0]):
@@ -71,14 +75,17 @@ def check_vm_states(hv_names):
     group_state_map = collections.defaultdict(int)
 
     for node_name in hv_names:
-        vmutils = utilsfactory.get_vmutils(host=node_name)
-        for vm_name in vmutils.list_instances():
-            state = vmutils.get_vm_state(vm_name)
-            vm_state_map[state] += 1
+        try:
+            vmutils = utilsfactory.get_vmutils(host=node_name)
+            for vm_name in vmutils.list_instances():
+                state = vmutils.get_vm_state(vm_name)
+                vm_state_map[state] += 1
 
-            if clusterutils and clusterutils.vm_exists(vm_name):
-                state_info = clusterutils.get_cluster_group_state_info(vm_name)
-                group_state_map[state_info['state']] += 1
+                if clusterutils and clusterutils.vm_exists(vm_name):
+                    state_info = clusterutils.get_cluster_group_state_info(vm_name)
+                    group_state_map[state_info['state']] += 1
+        except Exception as ex:
+            print("WARNING: Could not get hypervisor vms: %s" % node_name)
 
     # For now, we'll just print the amount of vms/groups
     # that are currently in a specific state.
