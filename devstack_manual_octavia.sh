@@ -37,6 +37,7 @@ source $TOP_DIR/lib/etcd3
 # ~/devstack/.stackenv must first be moved or updated
 source ~/devstack/openrc admin admin
 
+source /opt/stack/neutron/devstack/lib/octavia
 source /opt/stack/octavia/devstack/settings
 
 echo "Initializing DB backends"
