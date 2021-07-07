@@ -1,5 +1,6 @@
 #!/bin/bash
 TOP_DIR=~/devstack
+FILES=$TOP_DIR/files
 
 set -e
 
